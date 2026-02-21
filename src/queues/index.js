@@ -88,10 +88,25 @@ pitchQueue.process(async (job) => {
   return { leadId, email: sendResults.email, messaging: sendResults.messaging };
 });
 
-// ─── Followup Worker ──────────────────────────────────────────────────────────
+// ─── Followup Worker (single handler for both followups and auto-archive) ──────
 
 followupQueue.process(async (job) => {
   const { leadId, followupNumber } = job.data;
+
+  // ── Auto-archive job (scheduled 48h after follow-up #3) ──
+  if (followupNumber === 'archive') {
+    const lead = await Leads.findById(leadId);
+    if (!lead) return { skipped: true };
+
+    if (!['replied', 'converted'].includes(lead.status)) {
+      await Leads.updateStatus(leadId, 'archived');
+      await Activity.log('lead_archived', leadId, { reason: 'no_reply_after_3_followups' });
+      logger.info('Lead auto-archived', { leadId });
+    }
+    return { archived: true, leadId };
+  }
+
+  // ── Regular follow-up job ──
   const settings = getSettings();
 
   if (!settings.auto_followup_enabled) {
@@ -107,7 +122,7 @@ followupQueue.process(async (job) => {
   const lead = await Leads.findById(leadId);
   if (!lead) throw new Error(`Lead ${leadId} not found`);
 
-  // Cancel if lead has replied or been archived/converted
+  // Cancel if lead has already replied / been archived / converted
   if (['replied', 'archived', 'converted'].includes(lead.status)) {
     logger.info('Lead already handled, cancelling followup', { leadId, status: lead.status });
     return { cancelled: true, reason: lead.status };
@@ -119,9 +134,8 @@ followupQueue.process(async (job) => {
   const newStatus = `followed_up_${followupNumber}`;
   await Leads.updateStatus(leadId, newStatus);
 
-  // After 3rd followup with no reply, archive
+  // After 3rd follow-up, schedule auto-archive with 48h grace period
   if (followupNumber === 3) {
-    // Give 48h grace period for reply before archiving
     await followupQueue.add(
       { leadId, followupNumber: 'archive' },
       { delay: 48 * 60 * 60 * 1000, jobId: `archive-${leadId}` }
@@ -129,21 +143,6 @@ followupQueue.process(async (job) => {
   }
 
   return { leadId, followupNumber, status: newStatus };
-});
-
-// Handle archive job
-followupQueue.process(async (job) => {
-  if (job.data.followupNumber !== 'archive') return;
-  const { leadId } = job.data;
-
-  const lead = await Leads.findById(leadId);
-  if (!lead) return;
-
-  if (!['replied', 'converted'].includes(lead.status)) {
-    await Leads.updateStatus(leadId, 'archived');
-    await Activity.log('lead_archived', leadId, { reason: 'no_reply_after_3_followups' });
-    logger.info('Lead auto-archived', { leadId });
-  }
 });
 
 // ─── Notify Worker ────────────────────────────────────────────────────────────
