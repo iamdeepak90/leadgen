@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeadGen Admin — Gadgeek</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .sidebar-link { @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150; }
+    .sidebar-link:not(.active) { @apply text-slate-400 hover:text-white hover:bg-white/10; }
+    .sidebar-link.active { @apply bg-indigo-600 text-white shadow-lg shadow-indigo-900/40; }
+    .card { @apply bg-white rounded-2xl shadow-sm border border-slate-100 p-6; }
+    .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+    .btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all; }
+    .btn-primary { @apply btn bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm; }
+    .btn-outline { @apply btn border border-slate-200 text-slate-700 hover:bg-slate-50; }
+    .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+    .btn-success { @apply btn bg-emerald-600 text-white hover:bg-emerald-700; }
+    .form-input { @apply block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent; }
+    .form-label { @apply block text-sm font-semibold text-slate-700 mb-1.5; }
+    .stat-card { @apply card flex flex-col gap-1; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen" x-data="app()" x-init="init()">
+
+<!-- Toast -->
+<div x-cloak class="fixed top-4 right-4 z-50 flex flex-col gap-2" style="min-width:280px">
+  <template x-for="toast in toasts" :key="toast.id">
+    <div class="flex items-start gap-3 p-4 rounded-xl shadow-lg text-sm font-medium text-white"
+         :class="toast.type === 'error' ? 'bg-red-600' : toast.type === 'warn' ? 'bg-amber-500' : 'bg-emerald-600'"
+         x-show="toast.visible" x-transition>
+      <span x-text="toast.type === 'error' ? '✗' : toast.type === 'warn' ? '⚠' : '✓'" class="text-lg leading-none mt-0.5"></span>
+      <span x-text="toast.message"></span>
+    </div>
+  </template>
+</div>
+
+<!-- Layout -->
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-slate-900 flex flex-col py-6 px-3 gap-1 shrink-0 min-h-screen">
+    <div class="px-4 mb-6">
+      <div class="text-white font-bold text-lg tracking-tight">⚡ LeadGen</div>
+      <div class="text-slate-500 text-xs mt-0.5">Gadgeek Lead Engine</div>
+    </div>
+
+    <a href="#" @click.prevent="page='dashboard'" :class="page==='dashboard' ? 'active' : ''" class="sidebar-link">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM14 5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM14 13a1 1 0 011-1h4a1 1 0 011 1v8a1 1 0 01-1 1h-4a1 1 0 01-1-1v-8z"/></svg>
+      Dashboard
+    </a>
+
+    <a href="#" @click.prevent="page='leads'; loadLeads()" :class="page==='leads' ? 'active' : ''" class="sidebar-link">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+      Leads
+      <span x-show="stats.new_leads > 0" class="ml-auto badge bg-indigo-500 text-white" x-text="stats.new_leads"></span>
+    </a>
+
+    <a href="#" @click.prevent="page='activity'; loadActivity()" :class="page==='activity' ? 'active' : ''" class="sidebar-link">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Activity
+    </a>
+
+    <a href="#" @click.prevent="page='scans'; loadScans()" :class="page==='scans' ? 'active' : ''" class="sidebar-link">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      Scan History
+    </a>
+
+    <a href="#" @click.prevent="page='settings'; loadSettings()" :class="page==='settings' ? 'active' : ''" class="sidebar-link">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </a>
+
+    <div class="flex-1"></div>
+    <div class="px-4 py-3 text-xs text-slate-600">
+      <div x-text="'Queues: P'+queues.pitch.waiting+'/F'+queues.followup.delayed"></div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-auto">
+
+    <!-- ══════════════════ DASHBOARD ══════════════════ -->
+    <div x-show="page === 'dashboard'" x-cloak class="p-8">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p class="text-slate-500 text-sm mt-1">Your lead pipeline overview</p>
+        </div>
+        <div class="flex gap-3">
+          <button @click="triggerScan()" :disabled="scanning" class="btn-outline" :class="scanning ? 'opacity-60 cursor-not-allowed' : ''">
+            <svg class="w-4 h-4" :class="scanning ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span x-text="scanning ? 'Scanning...' : 'Run Scan Now'"></span>
+          </button>
+          <button @click="triggerPitchBatch()" class="btn-primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            Pitch Batch
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card">
+          <div class="text-3xl font-bold text-slate-900" x-text="stats.total || 0"></div>
+          <div class="text-sm text-slate-500 font-medium">Total Leads</div>
+          <div class="text-xs text-slate-400 mt-1" x-text="'+' + (stats.found_today || 0) + ' today'"></div>
+        </div>
+        <div class="stat-card">
+          <div class="text-3xl font-bold text-indigo-600" x-text="stats.in_pipeline || 0"></div>
+          <div class="text-sm text-slate-500 font-medium">In Pipeline</div>
+          <div class="text-xs text-slate-400 mt-1" x-text="(stats.new_leads || 0) + ' awaiting pitch'"></div>
+        </div>
+        <div class="stat-card">
+          <div class="text-3xl font-bold text-emerald-600" x-text="stats.replied || 0"></div>
+          <div class="text-sm text-slate-500 font-medium">Replied</div>
+          <div class="text-xs text-slate-400 mt-1" x-text="(stats.converted || 0) + ' converted'"></div>
+        </div>
+        <div class="stat-card">
+          <div class="text-3xl font-bold text-amber-600" x-text="'₹' + Number(stats.revenue || 0).toLocaleString('en-IN')"></div>
+          <div class="text-sm text-slate-500 font-medium">Revenue</div>
+          <div class="text-xs text-slate-400 mt-1">from conversions</div>
+        </div>
+      </div>
+
+      <!-- Website Status Cards -->
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="card border-l-4 border-red-400">
+          <div class="text-2xl font-bold text-red-600" x-text="stats.no_website || 0"></div>
+          <div class="text-sm font-semibold text-slate-700">No Website</div>
+          <div class="text-xs text-slate-400 mt-1">Never had one</div>
+        </div>
+        <div class="card border-l-4 border-orange-400">
+          <div class="text-2xl font-bold text-orange-600" x-text="stats.dead_website || 0"></div>
+          <div class="text-sm font-semibold text-slate-700">Dead Website</div>
+          <div class="text-xs text-slate-400 mt-1">Broken / unreachable</div>
+        </div>
+        <div class="card border-l-4 border-yellow-400">
+          <div class="text-2xl font-bold text-yellow-600" x-text="stats.parked_website || 0"></div>
+          <div class="text-sm font-semibold text-slate-700">Parked Website</div>
+          <div class="text-xs text-slate-400 mt-1">Placeholder page</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <h2 class="text-base font-bold text-slate-900 mb-4">Recent Activity</h2>
+        <div x-show="recentActivity.length === 0" class="text-center py-8 text-slate-400">No activity yet</div>
+        <div class="space-y-3">
+          <template x-for="item in recentActivity" :key="item.id">
+            <div class="flex items-start gap-3 py-2 border-b border-slate-50 last:border-0">
+              <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm flex-shrink-0"
+                   :class="activityColor(item.action)">
+                <span x-text="activityIcon(item.action)"></span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-slate-800" x-text="formatAction(item.action)"></div>
+                <div class="text-xs text-slate-400 flex gap-2 mt-0.5">
+                  <span x-text="item.business_name || 'System'"></span>
+                  <span x-text="timeAgo(item.created_at)"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ LEADS ══════════════════ -->
+    <div x-show="page === 'leads'" x-cloak class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Leads</h1>
+        <span class="text-slate-500 text-sm" x-text="leadsTotal + ' total'"></span>
+      </div>
+
+      <!-- Filters -->
+      <div class="card mb-6">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="form-label">Status</label>
+            <select class="form-input" x-model="leadFilter.status" @change="loadLeads()">
+              <option value="">All Statuses</option>
+              <option value="new">New</option>
+              <option value="pitched">Pitched</option>
+              <option value="followed_up_1">Follow-up 1</option>
+              <option value="followed_up_2">Follow-up 2</option>
+              <option value="followed_up_3">Follow-up 3</option>
+              <option value="replied">Replied</option>
+              <option value="converted">Converted</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Website Status</label>
+            <select class="form-input" x-model="leadFilter.website_status" @change="loadLeads()">
+              <option value="">All Types</option>
+              <option value="none">No Website</option>
+              <option value="dead">Dead Website</option>
+              <option value="parked">Parked Website</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Category</label>
+            <input class="form-input" type="text" placeholder="e.g. restaurant" x-model="leadFilter.category" @input.debounce.500="loadLeads()" />
+          </div>
+          <div>
+            <label class="form-label">Location</label>
+            <input class="form-input" type="text" placeholder="e.g. Chennai" x-model="leadFilter.location" @input.debounce.500="loadLeads()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Leads Table -->
+      <div class="card p-0 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Business</th>
+                <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</th>
+                <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Website</th>
+                <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rating</th>
+                <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Found</th>
+                <th class="px-4 py-3.5"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr x-show="leadsLoading">
+                <td colspan="7" class="text-center py-12 text-slate-400">Loading...</td>
+              </tr>
+              <tr x-show="!leadsLoading && leads.length === 0">
+                <td colspan="7" class="text-center py-12 text-slate-400">No leads found</td>
+              </tr>
+              <template x-for="lead in leads" :key="lead.id">
+                <tr class="hover:bg-slate-50 cursor-pointer transition-colors" @click="openLead(lead)">
+                  <td class="px-5 py-3.5">
+                    <div class="font-semibold text-slate-900" x-text="lead.business_name"></div>
+                    <div class="text-xs text-slate-400" x-text="lead.location"></div>
+                  </td>
+                  <td class="px-4 py-3.5 text-slate-600" x-text="lead.category"></td>
+                  <td class="px-4 py-3.5">
+                    <span class="badge"
+                          :class="{
+                            'bg-red-100 text-red-700': lead.website_status === 'none',
+                            'bg-orange-100 text-orange-700': lead.website_status === 'dead',
+                            'bg-yellow-100 text-yellow-700': lead.website_status === 'parked'
+                          }"
+                          x-text="lead.website_status === 'none' ? '🚫 None' : lead.website_status === 'dead' ? '💀 Dead' : '🅿 Parked'">
+                    </span>
+                  </td>
+                  <td class="px-4 py-3.5">
+                    <span x-show="lead.rating" class="text-amber-600 font-semibold" x-text="'⭐ ' + lead.rating"></span>
+                    <span x-show="lead.review_count > 0" class="text-xs text-slate-400 ml-1" x-text="'(' + lead.review_count + ')'"></span>
+                    <span x-show="!lead.rating" class="text-slate-300 text-xs">No rating</span>
+                  </td>
+                  <td class="px-4 py-3.5">
+                    <span class="badge" :class="statusBadgeClass(lead.status)" x-text="formatStatus(lead.status)"></span>
+                  </td>
+                  <td class="px-4 py-3.5 text-xs text-slate-400" x-text="formatDate(lead.created_at)"></td>
+                  <td class="px-4 py-3.5">
+                    <button @click.stop="openLead(lead)" class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold">View →</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50">
+          <span class="text-xs text-slate-500" x-text="'Showing ' + leads.length + ' of ' + leadsTotal"></span>
+          <div class="flex gap-2">
+            <button @click="leadsPage--; loadLeads()" :disabled="leadsPage === 0" class="btn-outline text-xs py-1.5 px-3 disabled:opacity-40">← Prev</button>
+            <button @click="leadsPage++; loadLeads()" :disabled="(leadsPage + 1) * leadsPageSize >= leadsTotal" class="btn-outline text-xs py-1.5 px-3 disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ ACTIVITY ══════════════════ -->
+    <div x-show="page === 'activity'" x-cloak class="p-8">
+      <h1 class="text-2xl font-bold text-slate-900 mb-6">Activity Feed</h1>
+      <div class="card">
+        <div x-show="activity.length === 0" class="text-center py-12 text-slate-400">No activity yet</div>
+        <div class="space-y-0 divide-y divide-slate-50">
+          <template x-for="item in activity" :key="item.id">
+            <div class="flex items-start gap-4 py-3.5">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+                   :class="activityColor(item.action)">
+                <span x-text="activityIcon(item.action)"></span>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold text-slate-800" x-text="formatAction(item.action)"></span>
+                  <span x-show="item.business_name" class="text-sm text-slate-500" x-text="'— ' + item.business_name"></span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5" x-text="new Date(item.created_at).toLocaleString('en-IN')"></div>
+                <div x-show="item.details && Object.keys(item.details).length > 0"
+                     class="text-xs text-slate-500 mt-1 bg-slate-50 rounded-lg px-3 py-1.5 font-mono"
+                     x-text="JSON.stringify(item.details, null, 2)"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <button @click="loadMoreActivity()" class="btn-outline w-full mt-4 justify-center">Load More</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════ SCAN HISTORY ══════════════════ -->
+    <div x-show="page === 'scans'" x-cloak class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Scan History</h1>
+        <button @click="triggerScan()" :disabled="scanning" class="btn-primary" :class="scanning ? 'opacity-60' : ''">
+          <span x-text="scanning ? 'Scanning...' : '▶ Run Scan Now'"></span>
+        </button>
+      </div>
+      <div class="card p-0 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 border-b border-slate-100">
+            <tr>
+              <th class="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Started</th>
+              <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+              <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Found</th>
+              <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">New</th>
+              <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Skipped</th>
+              <th class="text-left px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Duration</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            <tr x-show="scans.length === 0"><td colspan="6" class="text-center py-12 text-slate-400">No scans yet</td></tr>
+            <template x-for="scan in scans" :key="scan.id">
+              <tr class="hover:bg-slate-50">
+                <td class="px-5 py-3.5 text-xs text-slate-600" x-text="new Date(scan.started_at).toLocaleString('en-IN')"></td>
+                <td class="px-4 py-3.5">
+                  <span class="badge" :class="{
+                    'bg-emerald-100 text-emerald-700': scan.status === 'completed',
+                    'bg-red-100 text-red-700': scan.status === 'failed',
+                    'bg-blue-100 text-blue-700': scan.status === 'running'
+                  }" x-text="scan.status"></span>
+                </td>
+                <td class="px-4 py-3.5 font-semibold" x-text="scan.leads_found || 0"></td>
+                <td class="px-4 py-3.5 text-emerald-600 font-semibold" x-text="scan.leads_new || 0"></td>
+                <td class="px-4 py-3.5 text-slate-400" x-text="scan.leads_skipped || 0"></td>
+                <td class="px-4 py-3.5 text-xs text-slate-400"
+                    x-text="scan.completed_at ? Math.round((new Date(scan.completed_at) - new Date(scan.started_at)) / 60000) + ' min' : '—'"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══════════════════ SETTINGS ══════════════════ -->
+    <div x-show="page === 'settings'" x-cloak class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Settings</h1>
+        <button @click="saveSettings()" :disabled="savingSettings" class="btn-primary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span x-text="savingSettings ? 'Saving...' : 'Save All Settings'"></span>
+        </button>
+      </div>
+
+      <div class="space-y-6">
+
+        <!-- API Keys -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5 flex items-center gap-2">🔑 API Keys</h2>
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="form-label">Google Places API Key</label>
+              <div class="flex gap-2">
+                <input class="form-input font-mono" type="password" x-model="s.google_places_key" placeholder="AIza..." />
+                <button @click="testService('google_places')" class="btn-outline shrink-0">Test</button>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Enable Places API and Geocoding API in Google Cloud Console</p>
+            </div>
+            <div>
+              <label class="form-label">OpenRouter API Key</label>
+              <div class="flex gap-2">
+                <input class="form-input font-mono" type="password" x-model="s.openrouter_key" placeholder="sk-or-..." />
+                <button @click="testService('openrouter')" class="btn-outline shrink-0">Test</button>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">SendGrid API Key</label>
+              <div class="flex gap-2">
+                <input class="form-input font-mono" type="password" x-model="s.sendgrid_key" placeholder="SG...." />
+                <button @click="testService('sendgrid')" class="btn-outline shrink-0">Test</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="form-label">Twilio Account SID</label>
+                <input class="form-input font-mono" type="password" x-model="s.twilio_sid" placeholder="ACxxx..." />
+              </div>
+              <div>
+                <label class="form-label">Twilio Auth Token</label>
+                <div class="flex gap-2">
+                  <input class="form-input font-mono" type="password" x-model="s.twilio_token" placeholder="Token" />
+                  <button @click="testService('twilio')" class="btn-outline shrink-0">Test</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Twilio From Number</label>
+              <input class="form-input" type="text" x-model="s.twilio_from_number" placeholder="+91xxxxxxxxxx" />
+              <p class="text-xs text-slate-400 mt-1">Your Twilio SMS number in E.164 format</p>
+            </div>
+            <div>
+              <label class="form-label">WaSender API Key</label>
+              <div class="flex gap-2">
+                <input class="form-input font-mono" type="password" x-model="s.wasender_api_key" placeholder="API key from wasenderapi.com" />
+                <button @click="testService('wasender')" class="btn-outline shrink-0">Test</button>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">WhatsApp is tried first. SMS is used as fallback if WhatsApp fails.</p>
+            </div>
+            <div>
+              <label class="form-label">WaSender Phone Number</label>
+              <input class="form-input" type="text" x-model="s.wasender_phone_number" placeholder="+91xxxxxxxxxx" />
+            </div>
+            <div>
+              <label class="form-label">Slack Webhook URL</label>
+              <div class="flex gap-2">
+                <input class="form-input" type="text" x-model="s.slack_webhook_url" placeholder="https://hooks.slack.com/..." />
+                <button @click="testService('slack')" class="btn-outline shrink-0">Test</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Config -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5">📧 Email Configuration</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="form-label">From Email</label>
+              <input class="form-input" type="email" x-model="s.from_email" placeholder="hello@yourdomain.com" />
+            </div>
+            <div>
+              <label class="form-label">From Name</label>
+              <input class="form-input" type="text" x-model="s.from_name" placeholder="Your Name / Agency" />
+            </div>
+            <div class="col-span-2">
+              <label class="form-label">Morning Briefing Email</label>
+              <input class="form-input" type="email" x-model="s.briefing_email" placeholder="you@yourdomain.com" />
+              <p class="text-xs text-slate-400 mt-1">Daily briefing is sent here + Slack</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scan Config -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5">🔍 Scan Configuration</h2>
+          <div class="space-y-5">
+            <div>
+              <label class="form-label">Scan Areas (Cities)</label>
+              <div class="flex flex-wrap gap-2 mb-2">
+                <template x-for="(area, idx) in scanAreas" :key="idx">
+                  <span class="badge bg-slate-100 text-slate-700 text-sm py-1 px-3 flex items-center gap-1.5">
+                    <span x-text="area"></span>
+                    <button @click="scanAreas.splice(idx,1)" class="text-slate-400 hover:text-red-500">×</button>
+                  </span>
+                </template>
+              </div>
+              <div class="flex gap-2">
+                <input class="form-input" type="text" x-model="newScanArea" placeholder="e.g. Mumbai, India" @keydown.enter="addScanArea()" />
+                <button @click="addScanArea()" class="btn-outline shrink-0">+ Add</button>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Business Categories</label>
+              <div class="flex flex-wrap gap-2 mb-2">
+                <template x-for="(cat, idx) in scanCategories" :key="idx">
+                  <span class="badge bg-indigo-50 text-indigo-700 text-sm py-1 px-3 flex items-center gap-1.5">
+                    <span x-text="cat"></span>
+                    <button @click="scanCategories.splice(idx,1)" class="text-indigo-300 hover:text-red-500">×</button>
+                  </span>
+                </template>
+              </div>
+              <div class="flex gap-2">
+                <input class="form-input" type="text" x-model="newScanCategory" placeholder="e.g. gym, salon, clinic" @keydown.enter="addScanCategory()" />
+                <button @click="addScanCategory()" class="btn-outline shrink-0">+ Add</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <label class="form-label">Max Results Per Search</label>
+                <input class="form-input" type="number" x-model="s.scan_max_results" min="1" max="60" />
+                <p class="text-xs text-slate-400 mt-1">Higher = more API cost</p>
+              </div>
+              <div>
+                <label class="form-label">Scan Time (IST)</label>
+                <input class="form-input" type="time" x-model="s.scan_time" />
+              </div>
+              <div>
+                <label class="form-label">Scan Delay (ms)</label>
+                <input class="form-input" type="number" x-model="s.scan_delay_ms" min="100" step="100" />
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="scan_only_new" class="w-4 h-4 accent-indigo-600 rounded" x-model="s.scan_only_new" />
+              <label for="scan_only_new" class="text-sm font-medium text-slate-700">Skip places already in database (saves API costs)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Follow-up Schedule -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5">📅 Follow-up Schedule</h2>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="form-label">Follow-up #1 (days after pitch)</label>
+              <input class="form-input" type="number" x-model="s.followup_1_days" min="1" max="30" />
+            </div>
+            <div>
+              <label class="form-label">Follow-up #2 (days after pitch)</label>
+              <input class="form-input" type="number" x-model="s.followup_2_days" min="1" max="30" />
+            </div>
+            <div>
+              <label class="form-label">Follow-up #3 (days after pitch)</label>
+              <input class="form-input" type="number" x-model="s.followup_3_days" min="1" max="30" />
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3">After 3 follow-ups with no reply, lead is auto-archived after 48h grace period.</p>
+        </div>
+
+        <!-- AI Config -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5">🤖 AI Configuration</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="form-label">OpenRouter Model</label>
+              <select class="form-input" x-model="s.openrouter_model">
+                <option value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5 (Recommended)</option>
+                <option value="anthropic/claude-haiku-4-5">Claude Haiku 4.5 (Fast/Cheap)</option>
+                <option value="anthropic/claude-opus-4">Claude Opus 4 (Best Quality)</option>
+                <option value="openai/gpt-4o">GPT-4o</option>
+                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                <option value="google/gemini-pro-1.5">Gemini Pro 1.5</option>
+                <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Max Tokens per Response</label>
+              <input class="form-input" type="number" x-model="s.max_tokens" min="200" max="4000" step="100" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ⭐ Prompt Customization -->
+        <div class="card border-2 border-indigo-100">
+          <h2 class="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">⭐ Prompt Customization</h2>
+          <p class="text-xs text-slate-500 mb-5">Customize AI prompts to match your voice and strategy. Changes take effect on the next pitch/follow-up generation.</p>
+
+          <div class="space-y-6">
+            <!-- Email Prompts -->
+            <div class="bg-blue-50 rounded-xl p-5">
+              <h3 class="text-sm font-bold text-blue-900 mb-4">📧 Email Pitch Prompts</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="form-label text-blue-800">System Prompt</label>
+                  <p class="text-xs text-blue-600 mb-1.5">Defines the AI's persona and writing style for emails</p>
+                  <textarea class="form-input font-mono text-xs" rows="3" x-model="s.email_system_prompt"></textarea>
+                </div>
+                <div>
+                  <label class="form-label text-blue-800">User Instructions</label>
+                  <p class="text-xs text-blue-600 mb-1.5">Specific instructions for each email. Business details are appended automatically.</p>
+                  <textarea class="form-input font-mono text-xs" rows="3" x-model="s.email_user_instructions"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- WhatsApp/SMS Prompts -->
+            <div class="bg-green-50 rounded-xl p-5">
+              <h3 class="text-sm font-bold text-green-900 mb-4">💬 WhatsApp/SMS Pitch Prompts</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="form-label text-green-800">System Prompt</label>
+                  <p class="text-xs text-green-600 mb-1.5">AI persona for short messaging (WhatsApp / SMS)</p>
+                  <textarea class="form-input font-mono text-xs" rows="2" x-model="s.whatsapp_system_prompt"></textarea>
+                </div>
+                <div>
+                  <label class="form-label text-green-800">User Instructions</label>
+                  <p class="text-xs text-green-600 mb-1.5">Keep it under 75 words. Ends with a question.</p>
+                  <textarea class="form-input font-mono text-xs" rows="2" x-model="s.whatsapp_user_instructions"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Follow-up Prompts -->
+            <div class="bg-amber-50 rounded-xl p-5">
+              <h3 class="text-sm font-bold text-amber-900 mb-4">📅 Follow-up Prompts</h3>
+              <div class="space-y-6">
+                <template x-for="n in [1,2,3]" :key="n">
+                  <div class="border-l-4 border-amber-300 pl-4">
+                    <div class="text-sm font-bold text-amber-800 mb-3"
+                         x-text="n === 1 ? 'Follow-up #1 (Day ' + s.followup_1_days + ') — Friendly Check-in' : n === 2 ? 'Follow-up #2 (Day ' + s.followup_2_days + ') — Competitor Angle' : 'Follow-up #3 (Day ' + s.followup_3_days + ') — Final + Bonus'">
+                    </div>
+                    <div class="space-y-3">
+                      <div>
+                        <label class="form-label text-amber-700 text-xs">System Prompt</label>
+                        <textarea class="form-input font-mono text-xs" rows="2"
+                                  x-model="s[`followup${n}_system_prompt`]"></textarea>
+                      </div>
+                      <div>
+                        <label class="form-label text-amber-700 text-xs">User Instructions</label>
+                        <textarea class="form-input font-mono text-xs" rows="2"
+                                  x-model="s[`followup${n}_user_instructions`]"></textarea>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pitch Config -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5">🚀 Pitch Configuration</h2>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="form-label">Pitch Time (IST)</label>
+              <input class="form-input" type="time" x-model="s.pitch_time" />
+              <p class="text-xs text-slate-400 mt-1">Pitches go out at this time daily</p>
+            </div>
+            <div>
+              <label class="form-label">Batch Size (max/day)</label>
+              <input class="form-input" type="number" x-model="s.pitch_batch_size" min="1" max="200" />
+            </div>
+            <div>
+              <label class="form-label">Pitch Delay (ms)</label>
+              <input class="form-input" type="number" x-model="s.pitch_delay_ms" min="500" step="500" />
+              <p class="text-xs text-slate-400 mt-1">Delay between each pitch</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Automation Toggles -->
+        <div class="card">
+          <h2 class="text-base font-bold text-slate-900 mb-5">⚙️ Automation Toggles</h2>
+          <div class="space-y-4">
+            <template x-for="toggle in automationToggles" :key="toggle.key">
+              <div class="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
+                <div>
+                  <div class="text-sm font-semibold text-slate-800" x-text="toggle.label"></div>
+                  <div class="text-xs text-slate-400 mt-0.5" x-text="toggle.desc"></div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" class="sr-only peer" :id="toggle.key" x-model="s[toggle.key]" />
+                  <div class="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-indigo-400 rounded-full peer peer-checked:bg-indigo-600 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-5"></div>
+                </label>
+              </div>
+            </template>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sticky Save Button -->
+      <div class="mt-6 flex justify-end">
+        <button @click="saveSettings()" :disabled="savingSettings" class="btn-primary px-8 py-3 text-base">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span x-text="savingSettings ? 'Saving...' : 'Save All Settings'"></span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════════ LEAD MODAL ══════════════════ -->
+<div x-cloak x-show="leadModal" class="fixed inset-0 bg-black/50 z-40 flex items-start justify-center p-4 overflow-y-auto" @click.self="leadModal = false">
+  <div class="bg-white rounded-2xl w-full max-w-3xl my-8 shadow-2xl" x-show="leadModal" x-transition>
+    <div x-show="!selectedLead" class="p-8 text-center text-slate-400">Loading...</div>
+    <template x-if="selectedLead">
+      <div>
+        <!-- Header -->
+        <div class="flex items-start justify-between p-6 border-b border-slate-100">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900" x-text="selectedLead.business_name"></h2>
+            <div class="flex items-center gap-3 mt-2 flex-wrap">
+              <span class="badge" :class="statusBadgeClass(selectedLead.status)" x-text="formatStatus(selectedLead.status)"></span>
+              <span class="badge" :class="{
+                'bg-red-100 text-red-700': selectedLead.website_status === 'none',
+                'bg-orange-100 text-orange-700': selectedLead.website_status === 'dead',
+                'bg-yellow-100 text-yellow-700': selectedLead.website_status === 'parked'
+              }" x-text="selectedLead.website_status === 'none' ? '🚫 No Website' : selectedLead.website_status === 'dead' ? '💀 Dead Website' : '🅿 Parked Website'"></span>
+              <span x-show="selectedLead.rating" class="text-amber-600 text-sm font-semibold" x-text="'⭐ ' + selectedLead.rating + ' (' + selectedLead.review_count + ' reviews)'"></span>
+            </div>
+          </div>
+          <button @click="leadModal = false" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-5">
+
+          <!-- Business Info -->
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="text-slate-400">Category:</span>
+              <span class="ml-2 text-slate-800 font-medium" x-text="selectedLead.category || '—'"></span>
+            </div>
+            <div>
+              <span class="text-slate-400">Location:</span>
+              <span class="ml-2 text-slate-800 font-medium" x-text="selectedLead.location || '—'"></span>
+            </div>
+            <div class="col-span-2">
+              <span class="text-slate-400">Address:</span>
+              <span class="ml-2 text-slate-800" x-text="selectedLead.address || '—'"></span>
+            </div>
+            <div>
+              <span class="text-slate-400">Phone:</span>
+              <span class="ml-2 text-slate-800 font-medium" x-text="selectedLead.phone || '—'"></span>
+            </div>
+            <div>
+              <span class="text-slate-400">Email:</span>
+              <span class="ml-2 text-slate-800" x-text="selectedLead.email || '—'"></span>
+            </div>
+            <div>
+              <span class="text-slate-400">Photos on GMB:</span>
+              <span class="ml-2" x-text="selectedLead.has_photos ? '✅ Yes' : '❌ No'"></span>
+            </div>
+            <div>
+              <span class="text-slate-400">GMB Profile:</span>
+              <a x-show="selectedLead.gmb_url" :href="selectedLead.gmb_url" target="_blank" class="ml-2 text-indigo-600 hover:underline text-xs">View on Maps →</a>
+              <span x-show="!selectedLead.gmb_url" class="ml-2 text-slate-400">—</span>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="form-label">Notes</label>
+            <textarea class="form-input" rows="2" x-model="selectedLead.notes" @change="saveNotes(selectedLead)"></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-3 flex-wrap">
+            <button x-show="selectedLead.status === 'new'" @click="pitchLead(selectedLead)" class="btn-primary">
+              ✉️ Pitch Now
+            </button>
+            <button x-show="!['converted','archived'].includes(selectedLead.status)" @click="promptConvert(selectedLead)" class="btn-success">
+              💰 Mark Converted
+            </button>
+            <button x-show="!['archived','converted'].includes(selectedLead.status)" @click="archiveLead(selectedLead)" class="btn-outline text-slate-600">
+              🗃 Archive
+            </button>
+          </div>
+
+          <!-- Messages Timeline -->
+          <div x-show="leadMessages.length > 0">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Message History</h3>
+            <div class="space-y-3">
+              <template x-for="msg in leadMessages" :key="msg.id">
+                <div class="bg-slate-50 rounded-xl p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="badge bg-slate-200 text-slate-700 text-xs" x-text="msg.message_type.replace('_',' ')"></span>
+                      <span class="badge text-xs" :class="{
+                        'bg-blue-100 text-blue-700': msg.channel === 'email',
+                        'bg-green-100 text-green-700': msg.channel === 'whatsapp',
+                        'bg-purple-100 text-purple-700': msg.channel === 'sms'
+                      }" x-text="msg.channel"></span>
+                      <span class="badge text-xs" :class="{
+                        'bg-emerald-100 text-emerald-700': msg.status === 'sent',
+                        'bg-red-100 text-red-700': msg.status === 'failed',
+                        'bg-slate-100 text-slate-600': msg.status === 'pending',
+                        'bg-yellow-100 text-yellow-700': msg.status === 'cancelled'
+                      }" x-text="msg.status"></span>
+                    </div>
+                    <span class="text-xs text-slate-400" x-text="formatDate(msg.created_at)"></span>
+                  </div>
+                  <div x-show="msg.subject" class="text-xs font-semibold text-slate-600 mb-1.5" x-text="'Subject: ' + msg.subject"></div>
+                  <div class="text-xs text-slate-600 whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed" x-text="msg.body"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Replies -->
+          <div x-show="leadReplies.length > 0">
+            <h3 class="text-sm font-bold text-emerald-700 mb-3">💬 Replies</h3>
+            <div class="space-y-3">
+              <template x-for="reply in leadReplies" :key="reply.id">
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="badge bg-emerald-100 text-emerald-700 text-xs" x-text="'via ' + reply.channel"></span>
+                    <span class="text-xs text-slate-400" x-text="formatDate(reply.received_at)"></span>
+                  </div>
+                  <div class="text-sm text-slate-700" x-text="reply.body"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<!-- Convert Modal -->
+<div x-cloak x-show="convertModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="convertModal = false">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" x-show="convertModal" x-transition>
+    <h3 class="text-lg font-bold text-slate-900 mb-4">💰 Mark as Converted</h3>
+    <div>
+      <label class="form-label">Revenue Amount (₹)</label>
+      <input class="form-input text-lg font-semibold" type="number" x-model="convertRevenue" placeholder="0" min="0" step="500" />
+      <p class="text-xs text-slate-400 mt-1">Enter the contract/project value</p>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button @click="confirmConvert()" class="btn-success flex-1 justify-center py-3">✓ Confirm Conversion</button>
+      <button @click="convertModal = false" class="btn-outline flex-1 justify-center">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function app() {
+  return {
+    page: 'dashboard',
+    toasts: [],
+    toastId: 0,
+
+    // Dashboard
+    stats: {},
+    recentActivity: [],
+    queues: { pitch: {waiting:0,active:0}, followup: {waiting:0,active:0,delayed:0} },
+    scanning: false,
+
+    // Leads
+    leads: [],
+    leadsTotal: 0,
+    leadsPage: 0,
+    leadsPageSize: 50,
+    leadsLoading: false,
+    leadFilter: { status: '', website_status: '', category: '', location: '' },
+
+    // Lead Modal
+    leadModal: false,
+    selectedLead: null,
+    leadMessages: [],
+    leadReplies: [],
+
+    // Convert
+    convertModal: false,
+    convertRevenue: '',
+    convertingLead: null,
+
+    // Activity
+    activity: [],
+    activityLimit: 50,
+
+    // Scans
+    scans: [],
+
+    // Settings
+    s: {},
+    savingSettings: false,
+    scanAreas: [],
+    scanCategories: [],
+    newScanArea: '',
+    newScanCategory: '',
+
+    automationToggles: [
+      { key: 'auto_scan_enabled', label: 'Enable Daily Scan', desc: 'Runs Google Places scan every night at configured time' },
+      { key: 'auto_pitch_enabled', label: 'Enable Auto-Pitch', desc: 'Automatically pitches new leads at configured time daily' },
+      { key: 'auto_followup_enabled', label: 'Enable Auto Follow-ups', desc: 'Sends Day 3, 5, 7 follow-ups automatically' },
+      { key: 'briefing_enabled', label: 'Enable Morning Briefing', desc: 'Sends daily summary to Slack + email at 8 AM IST' },
+    ],
+
+    async init() {
+      await this.loadDashboard();
+      setInterval(() => { if (this.page === 'dashboard') this.loadDashboard(); }, 30000);
+    },
+
+    // ── API Helper ──
+    async api(method, path, body) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch('/api' + path, opts);
+      return res.json();
+    },
+
+    // ── Toast ──
+    toast(message, type = 'success') {
+      const id = ++this.toastId;
+      this.toasts.push({ id, message, type, visible: true });
+      setTimeout(() => { const t = this.toasts.find(x => x.id === id); if (t) t.visible = false; }, 3500);
+      setTimeout(() => { this.toasts = this.toasts.filter(x => x.id !== id); }, 4000);
+    },
+
+    // ── Dashboard ──
+    async loadDashboard() {
+      try {
+        const data = await this.api('GET', '/dashboard');
+        if (data.ok) {
+          this.stats = data.stats;
+          this.recentActivity = data.activity;
+          this.queues = data.queues;
+        }
+      } catch (e) { console.error(e); }
+    },
+
+    async triggerScan() {
+      this.scanning = true;
+      const data = await this.api('POST', '/actions/scan');
+      this.toast(data.message || 'Scan started!', data.ok ? 'success' : 'error');
+      setTimeout(() => { this.scanning = false; this.loadDashboard(); }, 3000);
+    },
+
+    async triggerPitchBatch() {
+      const data = await this.api('POST', '/actions/pitch-batch');
+      this.toast(data.message || 'Pitch batch started!', data.ok ? 'success' : 'error');
+    },
+
+    // ── Leads ──
+    async loadLeads() {
+      this.leadsLoading = true;
+      const params = new URLSearchParams({
+        ...this.leadFilter,
+        limit: this.leadsPageSize,
+        offset: this.leadsPage * this.leadsPageSize,
+      });
+      // Remove empty params
+      for (const [k, v] of [...params.entries()]) { if (!v) params.delete(k); }
+      try {
+        const data = await fetch('/api/leads?' + params).then(r => r.json());
+        if (data.ok) { this.leads = data.leads; this.leadsTotal = data.total; }
+      } finally { this.leadsLoading = false; }
+    },
+
+    async openLead(lead) {
+      this.selectedLead = lead;
+      this.leadModal = true;
+      this.leadMessages = [];
+      this.leadReplies = [];
+      const data = await this.api('GET', '/leads/' + lead.id);
+      if (data.ok) {
+        this.selectedLead = data.lead;
+        this.leadMessages = data.messages;
+        this.leadReplies = data.replies;
+      }
+    },
+
+    async pitchLead(lead) {
+      const data = await this.api('POST', '/leads/' + lead.id + '/pitch');
+      this.toast(data.ok ? 'Pitch queued!' : data.error, data.ok ? 'success' : 'error');
+      if (data.ok) { this.leadModal = false; await this.loadLeads(); }
+    },
+
+    promptConvert(lead) {
+      this.convertingLead = lead;
+      this.convertRevenue = '';
+      this.convertModal = true;
+    },
+
+    async confirmConvert() {
+      const data = await this.api('POST', '/leads/' + this.convertingLead.id + '/convert', { revenue: this.convertRevenue });
+      this.toast(data.ok ? '🎉 Lead converted!' : data.error, data.ok ? 'success' : 'error');
+      this.convertModal = false;
+      if (data.ok) { this.leadModal = false; await this.loadLeads(); await this.loadDashboard(); }
+    },
+
+    async archiveLead(lead) {
+      if (!confirm('Archive this lead?')) return;
+      const data = await this.api('POST', '/leads/' + lead.id + '/archive');
+      this.toast(data.ok ? 'Lead archived' : data.error, data.ok ? 'success' : 'error');
+      if (data.ok) { this.leadModal = false; await this.loadLeads(); }
+    },
+
+    async saveNotes(lead) {
+      await this.api('PATCH', '/leads/' + lead.id + '/notes', { notes: lead.notes });
+    },
+
+    // ── Activity ──
+    async loadActivity() {
+      const data = await this.api('GET', '/activity?limit=' + this.activityLimit);
+      if (data.ok) this.activity = data.activity;
+    },
+
+    async loadMoreActivity() {
+      this.activityLimit += 50;
+      await this.loadActivity();
+    },
+
+    // ── Scans ──
+    async loadScans() {
+      const data = await this.api('GET', '/scans');
+      if (data.ok) this.scans = data.scans;
+    },
+
+    // ── Settings ──
+    async loadSettings() {
+      const data = await this.api('GET', '/settings');
+      if (data.ok) {
+        this.s = { ...data.settings };
+        try { this.scanAreas = JSON.parse(this.s.scan_areas || '[]'); } catch { this.scanAreas = []; }
+        try { this.scanCategories = JSON.parse(this.s.scan_categories || '[]'); } catch { this.scanCategories = []; }
+        // Parse booleans
+        ['auto_scan_enabled','auto_pitch_enabled','auto_followup_enabled','briefing_enabled','scan_only_new'].forEach(k => {
+          this.s[k] = this.s[k] === 'true' || this.s[k] === true;
+        });
+      }
+    },
+
+    addScanArea() {
+      const a = this.newScanArea.trim();
+      if (a && !this.scanAreas.includes(a)) { this.scanAreas.push(a); this.newScanArea = ''; }
+    },
+
+    addScanCategory() {
+      const c = this.newScanCategory.trim();
+      if (c && !this.scanCategories.includes(c)) { this.scanCategories.push(c); this.newScanCategory = ''; }
+    },
+
+    async saveSettings() {
+      this.savingSettings = true;
+      try {
+        this.s.scan_areas = JSON.stringify(this.scanAreas);
+        this.s.scan_categories = JSON.stringify(this.scanCategories);
+        const data = await this.api('PATCH', '/settings', this.s);
+        this.toast(data.ok ? '✓ Settings saved!' : (data.error || 'Save failed'), data.ok ? 'success' : 'error');
+      } catch (e) {
+        this.toast('Save failed: ' + e.message, 'error');
+      } finally {
+        this.savingSettings = false;
+      }
+    },
+
+    async testService(service) {
+      this.toast('Testing ' + service + '...', 'warn');
+      const data = await this.api('POST', '/settings/test/' + service);
+      this.toast(data.ok ? '✓ ' + service + ' connected!' : '✗ ' + service + ': ' + (data.error || 'failed'), data.ok ? 'success' : 'error');
+    },
+
+    // ── Helpers ──
+    formatStatus(s) {
+      const map = {
+        new: 'New', pitched: 'Pitched',
+        followed_up_1: 'Follow-up 1', followed_up_2: 'Follow-up 2', followed_up_3: 'Follow-up 3',
+        replied: 'Replied', converted: 'Converted', archived: 'Archived',
+      };
+      return map[s] || s;
+    },
+
+    statusBadgeClass(s) {
+      return {
+        new: 'bg-blue-100 text-blue-700',
+        pitched: 'bg-indigo-100 text-indigo-700',
+        followed_up_1: 'bg-purple-100 text-purple-700',
+        followed_up_2: 'bg-violet-100 text-violet-700',
+        followed_up_3: 'bg-fuchsia-100 text-fuchsia-700',
+        replied: 'bg-emerald-100 text-emerald-700',
+        converted: 'bg-green-100 text-green-800',
+        archived: 'bg-slate-100 text-slate-500',
+      }[s] || 'bg-slate-100 text-slate-600';
+    },
+
+    activityIcon(action) {
+      const map = {
+        lead_found: '🔍', pitch_generated: '✍️', email_sent: '📧', whatsapp_sent: '💬',
+        sms_sent: '📱', email_failed: '❌', reply_received: '💬', lead_converted: '🎉',
+        lead_archived: '🗃', manual_pitch_triggered: '▶', pitch_batch_queued: '⚡',
+        followup_1_generated: '1️⃣', followup_2_generated: '2️⃣', followup_3_generated: '3️⃣',
+      };
+      return map[action] || '•';
+    },
+
+    activityColor(action) {
+      if (action.includes('fail') || action.includes('error')) return 'bg-red-100 text-red-600';
+      if (action.includes('reply') || action.includes('converted')) return 'bg-emerald-100 text-emerald-600';
+      if (action.includes('email') || action.includes('pitch')) return 'bg-blue-100 text-blue-600';
+      return 'bg-slate-100 text-slate-500';
+    },
+
+    formatAction(action) {
+      return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    },
+
+    formatDate(d) {
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    },
+
+    timeAgo(d) {
+      if (!d) return '';
+      const diff = Date.now() - new Date(d).getTime();
+      const min = Math.floor(diff / 60000);
+      if (min < 1) return 'just now';
+      if (min < 60) return min + 'm ago';
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return hr + 'h ago';
+      return Math.floor(hr / 24) + 'd ago';
+    },
+  };
+}
+</script>
+</body>
+</html>
