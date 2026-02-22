@@ -75,8 +75,8 @@ async function sendWhatsApp({ to, body, leadId, messageId }) {
   const apiKey = settings.wasender_api_key;
   const fromNumber = settings.wasender_phone_number;
 
-  if (!apiKey) throw new Error('WaSender API key not configured');
-  if (!to) throw new Error('No recipient phone number');
+  if (!apiKey) return { success: false, error: 'WaSender API key not configured', channel: 'whatsapp' };
+  if (!to) return { success: false, error: 'No recipient phone number', channel: 'whatsapp' };
 
   // Normalize phone: remove spaces/dashes, ensure starts with +
   const phone = normalizePhone(to);
