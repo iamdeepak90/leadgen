@@ -359,9 +359,93 @@
 
       <div class="space-y-5">
 
-        <!-- API Keys -->
+        <!-- Hostinger SMTP -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">🔑 API Keys</div>
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">📧 Email — Hostinger SMTP</div>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">SMTP Host</label>
+                <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                       type="text" x-model="s.hostinger_smtp_host" placeholder="smtp.hostinger.com" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">SMTP Port</label>
+                <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                       type="text" x-model="s.hostinger_smtp_port" placeholder="465" />
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 items-end">
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">SMTP Username (your Hostinger email)</label>
+                <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
+                       type="text" x-model="s.hostinger_smtp_user" placeholder="hello@yourdomain.com" />
+              </div>
+              <div></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 items-end">
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">SMTP Password (your Hostinger email password)</label>
+                <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
+                       type="password" x-model="s.hostinger_smtp_pass" placeholder="••••••••" />
+                <p class="text-xs text-slate-600 mt-1">Same password you use to login to Hostinger webmail</p>
+              </div>
+              <button @click="testService('hostinger_smtp')" class="px-4 py-2.5 rounded-lg text-sm font-semibold border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all">Test SMTP</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Twilio (WhatsApp + SMS) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-5">
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">📱 Twilio — WhatsApp & SMS</div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <span class="text-sm font-semibold" :class="s.twilio_enabled?'text-emerald-400':'text-slate-600'"
+                    x-text="s.twilio_enabled?'Enabled':'Disabled — Email Only'"></span>
+              <div class="relative inline-flex items-center">
+                <input type="checkbox" class="sr-only peer" x-model="s.twilio_enabled" />
+                <div class="w-11 h-6 rounded-full transition-colors bg-slate-700 peer-checked:bg-emerald-600">
+                  <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                       :class="s.twilio_enabled?'translate-x-5':'translate-x-0'"></div>
+                </div>
+              </div>
+            </label>
+          </div>
+          <div class="space-y-4" :class="s.twilio_enabled?'opacity-100':'opacity-40 pointer-events-none'">
+            <p class="text-xs text-slate-500">When disabled, only email outreach is sent. WhatsApp is primary, SMS is fallback.</p>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Account SID</label>
+                <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
+                       type="password" x-model="s.twilio_sid" placeholder="ACxxx..." />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Auth Token</label>
+                <div class="flex gap-2">
+                  <input class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
+                         type="password" x-model="s.twilio_token" placeholder="Token" />
+                  <button @click="testService('twilio')" class="px-3 py-2.5 rounded-lg text-sm font-semibold border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all shrink-0">Test</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">WhatsApp From Number <span class="text-slate-600 font-normal">— Primary</span></label>
+              <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
+                     type="text" x-model="s.twilio_whatsapp_from" placeholder="whatsapp:+14155238886" />
+              <p class="text-xs text-slate-600 mt-1">Format: whatsapp:+[number] · Use Twilio sandbox or approved WhatsApp Business number</p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">SMS From Number <span class="text-slate-600 font-normal">— Fallback when WhatsApp fails</span></label>
+              <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
+                     type="text" x-model="s.twilio_from_number" placeholder="+14155238886" />
+              <p class="text-xs text-slate-600 mt-1">Plain E.164 format (no whatsapp: prefix)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other API Keys -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">🔑 Other API Keys</div>
           <div class="space-y-4">
             <template x-for="field in apiKeyFields" :key="field.key">
               <div class="grid grid-cols-3 gap-3 items-end">
@@ -375,26 +459,6 @@
                   class="px-4 py-2.5 rounded-lg text-sm font-semibold border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all">Test</button>
               </div>
             </template>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Twilio Account SID</label>
-                <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
-                       type="password" x-model="s.twilio_sid" placeholder="ACxxx..." />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Twilio Auth Token</label>
-                <div class="flex gap-2">
-                  <input class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
-                         type="password" x-model="s.twilio_token" placeholder="Token" />
-                  <button @click="testService('twilio')" class="px-3 py-2.5 rounded-lg text-sm font-semibold border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all shrink-0">Test</button>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Twilio From Number (SMS fallback)</label>
-              <input class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600"
-                     type="text" x-model="s.twilio_from_number" placeholder="+91xxxxxxxxxx" />
-            </div>
           </div>
         </div>
 
@@ -790,12 +854,9 @@ function app() {
     ],
 
     apiKeyFields: [
-      { key:'google_places_key', label:'Google Places API Key', placeholder:'AIza...', test:'google_places', hint:'' },
+      { key:'google_places_key', label:'Google Places API Key', placeholder:'AIza...', test:'google_places', hint:'Enable Places API & Geocoding in Google Cloud Console' },
       { key:'openrouter_key',    label:'OpenRouter API Key',    placeholder:'sk-or-...', test:'openrouter', hint:'' },
-      { key:'sendgrid_key',      label:'SendGrid API Key',       placeholder:'SG....', test:'sendgrid', hint:'' },
-      { key:'wasender_api_key',  label:'WaSender API Key (WhatsApp primary)', placeholder:'from wasenderapi.com', test:'wasender', hint:'' },
-      { key:'wasender_phone_number', label:'WaSender Phone Number', placeholder:'+91xxxxxxxxxx', test:null, hint:'' },
-      { key:'slack_webhook_url', label:'Slack Webhook URL', placeholder:'https://hooks.slack.com/...', test:'slack', hint:'' },
+      { key:'slack_webhook_url', label:'Slack Webhook URL',     placeholder:'https://hooks.slack.com/...', test:'slack', hint:'' },
     ],
 
     automationToggles: [
@@ -920,7 +981,7 @@ function app() {
       this.s={...d.settings};
       try { this.scanAreas=JSON.parse(this.s.scan_areas||'[]'); } catch { this.scanAreas=[]; }
       try { this.scanCategories=JSON.parse(this.s.scan_categories||'[]'); } catch { this.scanCategories=[]; }
-      ['auto_scan_enabled','auto_pitch_enabled','auto_followup_enabled','briefing_enabled','scan_only_new'].forEach(k=>{
+      ['auto_scan_enabled','auto_pitch_enabled','auto_followup_enabled','briefing_enabled','scan_only_new','twilio_enabled'].forEach(k=>{
         this.s[k]=this.s[k]==='true'||this.s[k]===true;
       });
     },

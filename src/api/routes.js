@@ -10,8 +10,7 @@ const logger = require('../utils/logger');
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
-const MASKED_KEYS = ['google_places_key', 'openrouter_key', 'sendgrid_key',
-  'twilio_sid', 'twilio_token', 'wasender_api_key'];
+const MASKED_KEYS = ['google_places_key', 'openrouter_key', 'hostinger_smtp_pass', 'twilio_sid', 'twilio_token'];
 
 function maskValue(key, value) {
   if (MASKED_KEYS.includes(key) && value && value.length > 6) {
@@ -54,15 +53,14 @@ router.post('/settings/test/:service', async (req, res) => {
   const { service } = req.params;
   try {
     const {
-      testSendGrid, testTwilio, testWaSender,
+      testHostingerSMTP, testTwilio,
       testGooglePlaces, testOpenRouter, testSlack,
     } = require('../outreach');
 
     let result;
     switch (service) {
-      case 'sendgrid': result = await testSendGrid(); break;
+      case 'hostinger_smtp': result = await testHostingerSMTP(); break;
       case 'twilio': result = await testTwilio(); break;
-      case 'wasender': result = await testWaSender(); break;
       case 'google_places': result = await testGooglePlaces(); break;
       case 'openrouter': result = await testOpenRouter(); break;
       case 'slack': result = await testSlack(); break;
