@@ -1158,6 +1158,54 @@ function app() {
 
     formatAction(a) { return a.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); },
     formatDate(d) { if(!d)return'—'; return new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); },
+
+    bulkDelete() {
+      if (!this.selectedLeads.length) return;
+      this.confirmDeleteModal = true;
+    },
+    async confirmBulkDelete() {
+      this.confirmDeleteModal = false;
+      try {
+        const r = await fetch('/api/leads/bulk', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: this.selectedLeads }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          this.toast(`${d.deleted} leads deleted and blacklisted`, 'success');
+          this.selectedLeads = [];
+          this.loadLeads();
+        } else {
+          this.toast(d.error || 'Delete failed', 'error');
+        }
+      } catch (err) {
+        this.toast('Delete failed: ' + err.message, 'error');
+      }
+    },
+    async loadBlacklist() {
+      try {
+        const r = await fetch('/api/blacklist');
+        const d = await r.json();
+        if (d.ok) this.blacklist = d.items;
+      } catch (err) {
+        this.toast('Failed to load blacklist', 'error');
+      }
+    },
+    async removeFromBlacklist(place_id) {
+      try {
+        const r = await fetch(`/api/blacklist/${encodeURIComponent(place_id)}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (d.ok) {
+          this.toast('Removed from blacklist — will appear in future scans', 'success');
+          this.loadBlacklist();
+        } else {
+          this.toast(d.error || 'Failed', 'error');
+        }
+      } catch (err) {
+        this.toast('Error: ' + err.message, 'error');
+      }
+    },
     timeAgo(d) {
       if(!d)return'';
       const m=Math.floor((Date.now()-new Date(d))/60000);
