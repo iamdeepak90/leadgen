@@ -40,6 +40,7 @@ async function migrate() {
       ['scan_categories', JSON.stringify(['restaurant', 'salon', 'gym', 'clinic', 'shop'])],
       ['scan_max_results', '20'],
       ['scan_only_new', 'true'],
+      ['scan_require_email', 'true'],
       ['scan_time', '02:00'],
       ['pitch_time', '09:00'],
       ['pitch_batch_size', '50'],
@@ -160,8 +161,19 @@ async function migrate() {
       )
     `);
 
+    // Blacklisted places — never re-scan after manual deletion
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS blacklisted_places (
+        id SERIAL PRIMARY KEY,
+        place_id TEXT UNIQUE NOT NULL,
+        reason TEXT DEFAULT 'manually_deleted',
+        blacklisted_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     // Indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_blacklist_place_id ON blacklisted_places(place_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_place_id ON leads(place_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);

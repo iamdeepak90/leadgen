@@ -211,11 +211,48 @@
         </div>
       </div>
 
+      <!-- Bulk Action Bar -->
+      <div x-show="selectedLeads.length>0" x-cloak
+           class="flex items-center justify-between bg-indigo-950 border border-indigo-800 rounded-xl px-5 py-3 mb-3">
+        <span class="text-sm font-semibold text-indigo-300">
+          <span x-text="selectedLeads.length"></span> lead<span x-show="selectedLeads.length!==1">s</span> selected
+        </span>
+        <div class="flex items-center gap-3">
+          <button @click="selectedLeads=[]"
+            class="text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors">Clear selection</button>
+          <button @click="bulkDelete()"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-900/50 border border-red-700 text-red-300 text-sm font-semibold hover:bg-red-900 transition-all">
+            🗑 Delete &amp; Blacklist
+          </button>
+        </div>
+      </div>
+
+      <!-- Confirm Delete Modal -->
+      <div x-show="confirmDeleteModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+          <div class="text-lg font-bold text-white mb-2">🗑 Delete & Blacklist</div>
+          <p class="text-sm text-slate-400 mb-1">You are about to permanently delete <span class="text-white font-bold" x-text="selectedLeads.length"></span> lead<span x-show="selectedLeads.length!==1">s</span>.</p>
+          <p class="text-sm text-amber-400 mb-5">⚠️ These businesses will be <strong>blacklisted</strong> and will never appear in future scans.</p>
+          <div class="flex gap-3">
+            <button @click="confirmDeleteModal=false"
+              class="flex-1 px-4 py-2.5 rounded-lg border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition-all">Cancel</button>
+            <button @click="confirmBulkDelete()"
+              class="flex-1 px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-sm font-bold transition-all">Delete & Blacklist</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Table -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-slate-800">
+              <th class="px-4 py-3.5 w-10">
+                <input type="checkbox" class="w-4 h-4 rounded accent-indigo-500"
+                       :checked="selectedLeads.length>0&&selectedLeads.length===leads.length"
+                       :indeterminate="selectedLeads.length>0&&selectedLeads.length<leads.length"
+                       @change="$event.target.checked?selectedLeads=leads.map(l=>l.id):selectedLeads=[]" />
+              </th>
               <th class="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Business</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Website</th>
@@ -226,15 +263,21 @@
             </tr>
           </thead>
           <tbody>
-            <tr x-show="leadsLoading"><td colspan="7" class="text-center py-16 text-slate-600">Loading...</td></tr>
-            <tr x-show="!leadsLoading&&leads.length===0"><td colspan="7" class="text-center py-16 text-slate-700">No leads match filters</td></tr>
+            <tr x-show="leadsLoading"><td colspan="8" class="text-center py-16 text-slate-600">Loading...</td></tr>
+            <tr x-show="!leadsLoading&&leads.length===0"><td colspan="8" class="text-center py-16 text-slate-700">No leads match filters</td></tr>
             <template x-for="lead in leads" :key="lead.id">
-              <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer transition-colors" @click="openLead(lead)">
-                <td class="px-5 py-3.5">
+              <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer transition-colors"
+                  :class="selectedLeads.includes(lead.id)?'bg-indigo-950/30':''">
+                <td class="px-4 py-3.5 w-10" @click.stop>
+                  <input type="checkbox" class="w-4 h-4 rounded accent-indigo-500"
+                         :checked="selectedLeads.includes(lead.id)"
+                         @change="$event.target.checked?selectedLeads.push(lead.id):selectedLeads=selectedLeads.filter(i=>i!==lead.id)" />
+                </td>
+                <td class="px-5 py-3.5 cursor-pointer" @click="openLead(lead)">
                   <div class="font-semibold text-slate-100" x-text="lead.business_name"></div>
                   <div class="text-xs text-slate-600 mt-0.5" x-text="lead.location"></div>
                 </td>
-                <td class="px-4 py-3.5 text-xs text-slate-500" x-text="lead.category"></td>
+                <td class="px-4 py-3.5 text-xs text-slate-500 cursor-pointer" @click="openLead(lead)" x-text="lead.category"></td>
                 <td class="px-4 py-3.5">
                   <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold border"
                         :class="lead.website_status==='none'?'bg-red-900/30 text-red-400 border-red-800/40':lead.website_status==='dead'?'bg-orange-900/30 text-orange-400 border-orange-800/40':'bg-yellow-900/30 text-yellow-400 border-yellow-800/40'"
@@ -263,6 +306,47 @@
               class="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-700 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all">Next →</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== BLACKLIST ===== -->
+    <div x-show="page==='blacklist'" x-cloak class="p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-white mb-1">Blacklist</h1>
+          <p class="text-slate-500 text-sm">Businesses deleted and permanently excluded from future scans</p>
+        </div>
+        <button @click="loadBlacklist()" class="px-4 py-2 rounded-lg border border-slate-700 text-slate-400 text-sm font-semibold hover:bg-slate-800 transition-all">↻ Refresh</button>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div x-show="blacklist.length===0" class="py-16 text-center text-slate-700 text-sm">No blacklisted businesses yet. Delete leads to add them here.</div>
+        <table class="w-full text-sm" x-show="blacklist.length>0">
+          <thead>
+            <tr class="border-b border-slate-800">
+              <th class="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Place ID</th>
+              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Reason</th>
+              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Blacklisted</th>
+              <th class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="item in blacklist" :key="item.id">
+              <tr class="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                <td class="px-5 py-3.5 font-mono text-xs text-slate-400" x-text="item.place_id"></td>
+                <td class="px-4 py-3.5">
+                  <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-900/30 text-red-400 border border-red-800/40" x-text="item.reason"></span>
+                </td>
+                <td class="px-4 py-3.5 text-xs text-slate-600" x-text="formatDate(item.blacklisted_at)"></td>
+                <td class="px-4 py-3.5 text-right">
+                  <button @click="removeFromBlacklist(item.place_id)"
+                    class="text-xs font-semibold text-indigo-500 hover:text-indigo-300 transition-colors">Remove</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div x-show="blacklist.length>0" class="px-5 py-3 border-t border-slate-800 text-xs text-slate-600"
+             x-text="blacklist.length + ' blacklisted businesses'"></div>
       </div>
     </div>
 
@@ -542,6 +626,35 @@
                   <span class="text-sm text-slate-300 font-medium leading-tight">Skip existing (saves API cost)</span>
                 </label>
               </div>
+            </div>
+            <!-- Require email toggle — full width notice box -->
+            <div class="flex items-center justify-between p-4 rounded-xl border"
+                 :class="s.scan_require_email ? 'bg-emerald-950/30 border-emerald-900/40' : 'bg-amber-950/20 border-amber-900/30'">
+              <div>
+                <div class="text-sm font-semibold"
+                     :class="s.scan_require_email ? 'text-emerald-300' : 'text-amber-300'"
+                     x-text="s.scan_require_email ? '✅ Only saving leads with email addresses' : '⚠️ Saving all leads (including ones without email)'"></div>
+                <div class="text-xs mt-0.5"
+                     :class="s.scan_require_email ? 'text-emerald-700' : 'text-amber-700'"
+                     x-text="s.scan_require_email
+                       ? 'Scanner will scrape websites & GMB pages for emails. Leads without any email found are discarded.'
+                       : 'All qualifying leads saved regardless of email. WhatsApp/SMS will still work for leads with a phone number.'">
+                </div>
+              </div>
+              <label class="flex items-center gap-3 cursor-pointer ml-4 shrink-0">
+                <span class="text-xs font-bold uppercase tracking-wider"
+                      :class="s.scan_require_email ? 'text-emerald-400' : 'text-slate-600'"
+                      x-text="s.scan_require_email ? 'ON' : 'OFF'"></span>
+                <div class="relative inline-flex items-center">
+                  <input type="checkbox" class="sr-only peer" x-model="s.scan_require_email" />
+                  <div class="w-11 h-6 rounded-full transition-colors bg-slate-700 peer-checked:bg-emerald-600">
+                    <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                         :class="s.scan_require_email ? 'translate-x-5' : 'translate-x-0'"></div>
+                  </div>
+                </div>
+              </label>
+            </div>
+            <div class="hidden"><!-- dummy closing div placeholder -->
             </div>
           </div>
         </div>
@@ -837,6 +950,7 @@ function app() {
     stats: {}, recentActivity: [], queues: { pitch:{waiting:0}, followup:{delayed:0} },
     scanning: false,
     leads: [], leadsTotal: 0, leadsPage: 0, leadsPageSize: 50, leadsLoading: false,
+    selectedLeads: [], confirmDeleteModal: false, blacklist: [],
     leadFilter: { status:'', website_status:'', category:'', location:'' },
     leadModal: false, selectedLead: null, leadMessages: [], leadReplies: [],
     convertModal: false, convertRevenue: '', convertingLead: null,
@@ -981,7 +1095,7 @@ function app() {
       this.s={...d.settings};
       try { this.scanAreas=JSON.parse(this.s.scan_areas||'[]'); } catch { this.scanAreas=[]; }
       try { this.scanCategories=JSON.parse(this.s.scan_categories||'[]'); } catch { this.scanCategories=[]; }
-      ['auto_scan_enabled','auto_pitch_enabled','auto_followup_enabled','briefing_enabled','scan_only_new','twilio_enabled'].forEach(k=>{
+      ['auto_scan_enabled','auto_pitch_enabled','auto_followup_enabled','briefing_enabled','scan_only_new','twilio_enabled','scan_require_email'].forEach(k=>{
         this.s[k]=this.s[k]==='true'||this.s[k]===true;
       });
     },

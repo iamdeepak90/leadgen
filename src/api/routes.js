@@ -168,6 +168,39 @@ router.patch('/leads/:id/notes', async (req, res) => {
   }
 });
 
+// ─── Bulk Actions ────────────────────────────────────────────────────────────
+
+router.delete('/leads/bulk', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ ok: false, error: 'No lead IDs provided' });
+    }
+    const result = await Leads.bulkDelete(ids);
+    res.json({ ok: true, ...result, message: `${result.deleted} leads deleted and blacklisted` });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/blacklist', async (req, res) => {
+  try {
+    const [items, total] = await Promise.all([Blacklist.list(), Blacklist.count()]);
+    res.json({ ok: true, items, total });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.delete('/blacklist/:place_id', async (req, res) => {
+  try {
+    await Blacklist.remove(req.params.place_id);
+    res.json({ ok: true, message: 'Removed from blacklist — will appear in future scans' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ─── Manual Actions ───────────────────────────────────────────────────────────
 
 router.post('/actions/scan', async (req, res) => {

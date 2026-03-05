@@ -160,6 +160,32 @@ const Leads = {
     return res.rows[0];
   },
 
+  async bulkDelete(ids) {
+    if (!ids || !ids.length) return { deleted: 0 };
+    // Grab place_ids first so we can blacklist them
+    const placeRes = await pool.query(
+      `SELECT place_id FROM leads WHERE id = ANY($1::int[])`, [ids]
+    );
+    const placeIds = placeRes.rows.map(r => r.place_id);
+
+    // Blacklist all — they will never be re-added by the scanner
+    for (const pid of placeIds) {
+      await pool.query(
+        `INSERT INTO blacklisted_places (place_id) VALUES ($1) ON CONFLICT (place_id) DO NOTHING`,
+        [pid]
+      );
+    }
+
+    // Cascade delete related rows then the leads themselves
+    await pool.query(`DELETE FROM messages WHERE lead_id = ANY($1::int[])`, [ids]);
+    await pool.query(`DELETE FROM replies  WHERE lead_id = ANY($1::int[])`, [ids]);
+    await pool.query(`DELETE FROM activity WHERE lead_id = ANY($1::int[])`, [ids]);
+    const res = await pool.query(
+      `DELETE FROM leads WHERE id = ANY($1::int[]) RETURNING id`, [ids]
+    );
+    return { deleted: res.rowCount, blacklisted: placeIds.length };
+  },
+
   async getPitchQueue(limit = 50) {
     const res = await pool.query(
       `SELECT * FROM leads WHERE status = 'new' ORDER BY created_at ASC LIMIT $1`,
@@ -334,4 +360,31 @@ const ScanRuns = {
   },
 };
 
-module.exports = { pool, Settings, Leads, Messages, Replies, Activity, ScanRuns };
+// ─── Blacklist ────────────────────────────────────────────────────────────────
+
+const Blacklist = {
+  async has(place_id) {
+    const res = await pool.query(
+      'SELECT 1 FROM blacklisted_places WHERE place_id = $1', [place_id]
+    );
+    return res.rows.length > 0;
+  },
+
+  async list(limit = 200) {
+    const res = await pool.query(
+      'SELECT * FROM blacklisted_places ORDER BY blacklisted_at DESC LIMIT $1', [limit]
+    );
+    return res.rows;
+  },
+
+  async remove(place_id) {
+    await pool.query('DELETE FROM blacklisted_places WHERE place_id = $1', [place_id]);
+  },
+
+  async count() {
+    const res = await pool.query('SELECT COUNT(*) FROM blacklisted_places');
+    return parseInt(res.rows[0].count);
+  },
+};
+
+module.exports = { pool, Settings, Leads, Messages, Replies, Activity, ScanRuns, Blacklist };
